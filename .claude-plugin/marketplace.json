@@ -1,0 +1,21 @@
+{
+  "name": "ziint",
+  "owner": {
+    "name": "Ziint",
+    "url": "https://ziint.com"
+  },
+  "metadata": {
+    "description": "Marketplace oficial de plugins e skills do Ziint para agentes de IA.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ziint",
+      "source": "./plugins/ziint",
+      "description": "Skill + MCP + comandos para consultar e operar os dados da empresa no Ziint via IA.",
+      "version": "1.0.0",
+      "author": { "name": "Ziint", "url": "https://ziint.com" },
+      "keywords": ["ziint", "mcp", "forms", "dashboards", "analytics"]
+    }
+  ]
+}

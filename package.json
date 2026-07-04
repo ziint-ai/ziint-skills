@@ -1,0 +1,19 @@
+{
+  "name": "ziint-agent-skills",
+  "version": "1.0.0",
+  "description": "Skill e plugin oficiais do Ziint para agentes de IA (Claude Code, Codex, OpenCode, Cursor, ...) via MCP.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync-skill.mjs",
+    "doctor": "node skills/ziint/scripts/ziint-doctor.mjs",
+    "prepublishOnly": "node scripts/sync-skill.mjs"
+  },
+  "license": "MIT",
+  "homepage": "https://ziint.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ziint-ai/ziint-skills"
+  },
+  "keywords": ["ziint", "mcp", "agent-skills", "skill", "claude-code", "codex", "opencode"]
+}

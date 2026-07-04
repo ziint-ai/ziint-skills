@@ -1,0 +1,21 @@
+# Metadados opcionais para o Codex (OpenAI). Ignorado por outros agentes —
+# o SKILL.md continua sendo a fonte de verdade cross-platform.
+interface:
+  display_name: "Ziint"
+  default_prompt: "Ajude-me a consultar e operar os dados da minha empresa no Ziint (formulários, respostas, dashboards, relatórios) via MCP."
+  color: "#4F46E5"
+
+policy:
+  # Permite que o Codex invoque a skill implicitamente quando o pedido casar
+  # com a description do SKILL.md.
+  allow_implicit_invocation: true
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "ziint"
+      transport: "streamable_http"
+      url: "https://api.ziint.com/api/mcp"
+      # Autenticação: header X-API-Key: ziint_live_<segredo>.
+      # Configurar conforme references/setup.md (o Codex pode não injetar headers
+      # custom automaticamente — nesse caso usar a ponte mcp-remote).

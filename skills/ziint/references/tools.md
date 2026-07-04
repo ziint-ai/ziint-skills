@@ -1,0 +1,158 @@
+# Catálogo de tools do MCP Ziint
+
+23 tools, todas confinadas à empresa da API key (multi-tenant enforced no servidor). Convenções:
+- Erros vêm como `{ "error": "..." }` dentro do conteúdo da tool — ler e se recuperar.
+- `✅` = obrigatório. Tools de escrita estão marcadas com ✍️ e aceitam `dryRun`.
+- IDs (`formularioId`, `dashboardId`, ...) sempre vêm de uma tool de listagem — nunca inventar.
+
+## Formulários e respostas
+
+### `list_forms` — `forms:read`
+Lista formulários da empresa. Ponto de partida para descobrir `formularioId`.
+Args: `search?` (ILIKE no título), `limit?` (padrão 50, teto 200).
+Retorno: array de `{ id, titulo, descricao, workflowHabilitado }`.
+
+### `get_form_overview` — `forms:read`
+Métricas rápidas de um formulário.
+Args: `formularioId` ✅.
+Retorno: `{ titulo, totalResponses, uniqueRespondents, firstSubmissionAt, lastSubmissionAt, activeWorkflowResponses, totalWorkflowSteps, statusCounts: [{label,value}] }`.
+
+### `get_form_fields` — `forms:read`
+Campos de um formulário — discovery obrigatório antes de `create_response` e do modo campo de `query_responses`.
+Args: `formularioId` ✅.
+Retorno: `{ fields: [{ id, name, type, isMulti, options: [{label,value}] }] }`.
+Regras: usar `id` do campo como chave em `respostas`; em campos com `options`, enviar o `value` (não o `label`); `isMulti: true` aceita array.
+
+### `query_responses` — `responses:read`
+Consulta agregada e segura das respostas. Dois modos:
+
+**Modo metadados:** `formularioId` ✅, `groupBy?: "status"|"day"`, `days?` (teto 365), `period?: {preset:"7d"|"30d"|"90d"|"12m"} | {from,to}`.
+Retorno: `{ total, breakdown: [{label,value}] }`.
+
+**Modo campo (agregação por campo do form ou atributo do respondente):**
+- `groupBy`: um `fieldId` OU `"usuario.<nome|email|matricula|codigo|phone|uo>"`
+- `aggregate?`: `"count"` (padrão) | `"sum"` | `"avg"` | `"min"` | `"max"` — se ≠ count, exige `aggregateField` (fieldId)
+- `distinct?: boolean`
+- `filters?`: `[{ campo: fieldId|"usuario.*", operador: "="|"!="|">"|"<"|"contains", valor }]` (máx 10; **não aceita** `"status"`/`"day"` como campo)
+- `select?`: `fieldId[]` (máx 30, sem `groupBy`) → modo linhas cruas `{ mode:"rows", total, rows }`
+- `limit?` (máx 500) / `offset?`
+
+Retorno agregado: `{ groupBy, aggregate, breakdown: [{label,value}] }` — o `breakdown` alimenta `generate_chart` diretamente.
+Pegadinhas: nomes de campo inválidos retornam `{ error, validFields }` — autocorrigir. Não existe agregação sem `groupBy` (para "soma total", agrupar por campo de baixa cardinalidade, ex.: `status` no modo metadados não serve — usar um fieldId).
+
+### `create_response` — `responses:write` ✍️
+Cria uma resposta (dispara workflow, notificações, integrações e gamificação como uma submissão normal). Autor = dono da API key.
+Args: `formularioId` ✅, `respostas` ✅ (`{ "<fieldId>": valor }`), `status?` (padrão `sent`), `receiverId?`, `idempotencyKey?`, `dryRun?`.
+Retornos: `{ dryRun:true, wouldCreate, validation:{unknownFields,missingRequired,invalidOptions} }` · `{ ok:true, responseId, status }` · `{ ok:true, idempotent:true, responseId }` · `{ error, validation }`.
+Fluxo obrigatório: `get_form_fields` → `dryRun:true` → confirmação do usuário → real com `idempotencyKey` (idempotência garantida no banco).
+
+## Analytics
+
+### `analyze_form` — `analytics:read` (+ `responses:read` para `samples`/`respondents`)
+Análise exploratória 3-em-1.
+Args: `formularioId` ✅, `analysis` ✅ (`"field_profiles"` | `"samples"` | `"respondents"`), `fieldIds?`, `limit?` (máx 50, samples), `topN?` (máx 20, profiles), `search?` (respondents).
+`field_profiles` exige só `analytics:read`; `samples`/`respondents` exigem também `responses:read` (PII).
+
+### `get_workflow_analytics` — `analytics:read`
+Analytics das ações de workflow de um formulário.
+Args: `formularioId` ✅, `workflowStepId?`, `stepName?` (ILIKE), `dateFrom?`/`dateTo?`, `topN?` (padrão 10, máx 50), `includeStepFields?`.
+Retorno: `{ overview:{totalActions,responsesTouched,avgHoursFromSubmission,...}, actionCounts, stepCounts, actorCounts, topComments, stepFields? }`.
+
+### `generate_chart` — `analytics:read`
+Gera gráfico (pizza/barra) de dados já obtidos e retorna o link da imagem.
+Args: `type` ✅ (`"pie"`|`"bar"`), `title?`, `labels?`+`values?` OU `rows?` (`[{label,value}]`), `datasetLabel?`.
+Retorno: markdown `![Gráfico gerado](url)`.
+⚠️ Imagem publicada em S3 **público** — confirmar com o usuário antes de incluir dados sensíveis em título/labels.
+
+### `generate_csv` — `analytics:read`
+Gera CSV de dados já obtidos e retorna link de download.
+Args: `rows` ✅ (array de objetos, máx 5000), `filename?`.
+⚠️ Mesmo aviso de S3 público.
+
+### `get_system_report` — `analytics:read`
+8 relatórios em nível de **empresa** (não por formulário).
+Args: `report` ✅ — `summary` | `responses_by_date` | `responses_by_user` | `responses_by_form` | `user_activity` | `form_activity` | `trends` | `field_usage`; extras conforme o relatório: `startDate`, `endDate`, `formId`, `limit`, `days`, `interval`, `months`.
+Ex.: crescimento de 6 meses → `{ report: "trends", months: 6 }`.
+
+### `get_gamification` — `analytics:read`
+Leaderboard, posição do dono da chave, ou metadados do esquema ativo.
+Args: `view` ✅ (`leaderboard`|`my_position`|`scheme`), `periodId?` (padrão `"auto"`), `limit?` (padrão 10, máx 50, só leaderboard).
+`my_position` pode retornar `{ restricted: true }` (esquema restrito a grupos).
+
+### `get_user_summary` — `analytics:read`
+Painel pessoal do **dono da API key**: workflow pendente, assinaturas, agendamentos, treinamentos, notificações, gamificação e timeline — numa chamada.
+Args: `sections?` (recorta o JSON), `upcomingDays?` (padrão 7, máx 30), `timelineLimit?` (padrão 10, máx 50).
+Uso: "o que está pendente pra mim hoje?".
+
+## Dashboards
+
+> Spec completa de criação/edição (widgets, grid, fontes): `dashboards.md`.
+
+### `list_dashboards` — `dashboards:read`
+Args: `grupo?`, `tag?`, `ativo?` (padrão true), `search?`, `limit?` (teto 100), `offset?`.
+Retorno: `{ id, nome, descricao, grupo, icone, tags, publico, dataCriacao }[]`.
+Visibilidade: só dashboards públicos, criados pelo dono da chave, autorizados a ele, ou todos se a chave é de admin/gerente — pode "ver menos" que a UI, por design.
+
+### `get_dashboard` — `dashboards:read`
+Árvore completa: painéis → widgets → fontes.
+Args: `dashboardId` ✅, `include?: "summary"` (padrão) | `"full"`.
+Retorno: `{ nome, paineis: [{ nome, objetos: [{ nome, tipo, posicao, fonteDadosId, fonteDados:{id,nome,tipo} }] }] }`. `"full"` inclui `configuracoes` (strings >4KB truncadas; payload >100KB degrada para summary com `_truncated`).
+
+### `list_datasources` — `dashboards:read`
+Args: `tipo?` (`manual|formulario|consulta_sql|api|file|users|company|workflow`), `categoria?`, `tag?`, `search?`, `limit?`/`offset?`.
+Retorno: `{ id, nome, tipo, categoria, tags, variaveis, ativo }[]` — `variaveis` informa o que passar em `get_datasource_data`.
+
+### `get_datasource_data` — `dashboards:read`
+Executa uma fonte de dados salva (mesma engine dos dashboards nativos).
+Args: `fonteDadosId` ✅, `limit?` (padrão 200, teto 1000), `offset?`, `variables?` (só chaves **declaradas** na fonte; valores coagidos pelo tipo).
+Retorno: `{ tipo, totalRecords, returned, truncated, data }`. `truncated: true` → paginar com `offset`.
+Restrições: tipo `file` é negado via MCP; `consulta_sql` executa apenas SQL já autorado por admin (o LLM nunca cria/edita esse SQL).
+
+### `create_dashboard` — `dashboards:write` ✍️
+Cria dashboard completo (painéis + widgets + fontes) numa transação atômica. Ver `dashboards.md`.
+Args principais: `nome` ✅, `paineis` ✅ (1–8, cada um com `objetos[]` ≤20), `descricao?`, `grupo?`, `icone?`, `tags?` (≤20), `publico?` (padrão false), `configuracoes?`, `idempotencyKey?` (best-effort), `dryRun?`.
+Fontes inline: só `formulario` (exige `configuracao.formularioId`) e `users`; `consulta_sql` **nunca**. Widget pode referenciar fonte existente de qualquer tipo via `fonteDadosId` (XOR com `fonteDados`).
+`warnings` não bloqueiam (ex.: widgets sobrepostos); `errors` bloqueiam.
+
+### `update_dashboard` — `dashboards:write` ✍️
+Patch por operações (não substitui a árvore).
+Args: `dashboardId` ✅, `operations[]` ✅ (1–20), `dryRun?`.
+Ops: `update_meta` (merge raso de `configuracoes`), `add_painel`, `update_painel`, `remove_painel`, `add_objeto`, `update_objeto`, `remove_objeto` (soft delete).
+Permissão: criador do dashboard ou admin/gerente.
+
+### `delete_dashboard` — `dashboards:write` ✍️
+Soft delete (desativa). Não existe hard delete via MCP.
+Args: `dashboardId` ✅. Retorna `{ ok, idempotent? }`.
+
+## Outros domínios
+
+### `list_bookings` — `scheduling:read`
+Agendamentos de recursos da empresa.
+Args: `dateFrom?`, `dateTo?`, `resourceId?`, `status?` (`pendente|confirmado|cancelado|concluido`), `limit?` (teto 100), `offset?`.
+Retorno: `{ id, inicio, fim, status, observacoes, resource:{id,nome,tipo}, user:{id,nome,email} }[]`.
+
+### `list_signature_documents` — `signatures:read`
+Documentos de assinatura eletrônica.
+Args: `status?` (`PENDING|IN_PROGRESS|FULLY_SIGNED|CANCELLED`), `dateFrom?`/`dateTo?`, `search?`, `limit?` (teto 100), `offset?`.
+Retorno: `{ id, documentName, status, totalSigners, completedSigners, currentSignerIndex, createdAt, createdBy }[]`.
+
+## Bancos de dados externos
+
+### `list_database_connections` — `database:read`
+Conexões de banco **externas** cadastradas pela empresa (não é o banco do Ziint).
+Args: `search?`, `limit?` (teto 100), `offset?`.
+Retorno: `{ id, nome, tipo, database, isActive, promptRespostaAgente, promptGeracaoSql, ... }[]` — **nunca** retorna host/porta/usuário/senha.
+Uso: **ler `promptRespostaAgente` (contexto do banco) e `promptGeracaoSql` (schema/tabelas/regras) antes de montar qualquer SQL.**
+
+### `query_database` — `database:read`
+Executa SELECT read-only na conexão externa escolhida.
+Args: `connectionId` ✅, `sql` ✅ (deve começar com `SELECT` ou `WITH ... SELECT`), `maxRows?` (padrão 500, teto 5000).
+Retorno: `{ tipo, rowCount, truncated, rows }`.
+Regras: mutações (`INSERT/UPDATE/DELETE/DROP/...`) e stacked queries (`;` + conteúdo) são bloqueadas no servidor; `truncated: true` → refinar com `WHERE`/`LIMIT`.
+
+## Resources e prompt MCP (clientes que suportam)
+
+- Resource `ziint://docs/dashboard-spec` (sempre visível) — spec de widgets/grid/fontes.
+- Resource `ziint://forms/{formularioId}/schema` (`forms:read`) — schema de um formulário por URI.
+- Prompt `build-dashboard` (`dashboards:write`) — fluxo guiado de criação de dashboard. Args: `objetivo` ✅, `formularioId?`.
+Nenhuma tool depende deles; muitos clientes MCP os ignoram.

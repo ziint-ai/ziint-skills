@@ -1,0 +1,13 @@
+{
+  "name": "ziint",
+  "version": "1.0.0",
+  "description": "Consulte e opere os dados da sua empresa no Ziint (formulários, respostas, dashboards, relatórios, gamificação, agendamentos, assinaturas e bancos externos) via IA — traz a skill Ziint, o MCP Server já apontado e comandos /ziint:*.",
+  "author": {
+    "name": "Ziint",
+    "url": "https://ziint.com"
+  },
+  "homepage": "https://ziint.com",
+  "repository": "https://github.com/ziint-ai/ziint-skills",
+  "license": "MIT",
+  "keywords": ["ziint", "mcp", "forms", "dashboards", "analytics", "no-code"]
+}

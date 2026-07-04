@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ziint": {
+      "type": "http",
+      "url": "https://api.ziint.com/api/mcp",
+      "headers": {
+        "X-API-Key": "${ZIINT_API_KEY}"
+      }
+    }
+  }
+}
