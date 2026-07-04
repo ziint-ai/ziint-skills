@@ -1,5 +1,7 @@
 # Ziint Agent Skills
 
+![Ziint Agent Skills](./cover.jpg)
+
 Conecte o **Ziint** ao seu assistente de IA e converse com os dados da sua empresa em linguagem natural — *"quantas respostas o formulário de auditoria teve essa semana?"*, *"crie um dashboard de vendas"*, *"o que está pendente pra mim hoje?"*.
 
 Este pacote traz uma **Agent Skill** no padrão aberto `SKILL.md` (funciona em Claude Code, Codex, OpenCode, Cursor, Copilot, Gemini CLI e ~70 agentes) + um **plugin Claude Code** completo. Tudo conversa com o **MCP Server oficial do Ziint** (`https://api.ziint.com/api/mcp`), autenticado por API key e isolado por empresa.
