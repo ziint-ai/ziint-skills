@@ -1,6 +1,6 @@
 # Catálogo de tools do MCP Ziint
 
-23 tools, todas confinadas à empresa da API key (multi-tenant enforced no servidor). Convenções:
+29 tools, todas confinadas à empresa da API key (multi-tenant enforced no servidor). Convenções:
 - Erros vêm como `{ "error": "..." }` dentro do conteúdo da tool — ler e se recuperar.
 - `✅` = obrigatório. Tools de escrita estão marcadas com ✍️ e aceitam `dryRun`.
 - IDs (`formularioId`, `dashboardId`, ...) sempre vêm de uma tool de listagem — nunca inventar.
@@ -135,6 +135,49 @@ Retorno: `{ id, inicio, fim, status, observacoes, resource:{id,nome,tipo}, user:
 Documentos de assinatura eletrônica.
 Args: `status?` (`PENDING|IN_PROGRESS|FULLY_SIGNED|CANCELLED`), `dateFrom?`/`dateTo?`, `search?`, `limit?` (teto 100), `offset?`.
 Retorno: `{ id, documentName, status, totalSigners, completedSigners, currentSignerIndex, createdAt, createdBy }[]`.
+
+### `query_signature_pendencies` — `signatures:read`
+"Quais assinaturas estão pendentes?" e "quem ainda não assinou?". Uma linha por **pendência** (signatário que não assinou num documento aberto), não por documento.
+Args: `signerQuery?` (pessoa: nome/e-mail/telefone/CPF), `search?` (nome do documento), `minDaysWaiting?`, `slotStatus?` (`WAITING|IN_PROGRESS`), `dateFrom?`/`dateTo?`, `sort?` (`daysWaiting|documentName|signerName`), `order?`, `page?`, `limit?` (teto 200).
+Retorno: `{ items: [{ documentId, documentName, documentStatus, slotId, order, signerName, signerEmail, isCurrent, slotStatus, waitingSince, daysWaiting, aging, lastRemindedAt, totalSigners, completedSigners, documentCreatedAt }], pagination, summary }`.
+**Pegadinha — não existe prazo.** Assinatura neste sistema **não tem data de vencimento**. O que existe é há quanto tempo a pessoa está parada, em faixas: `fresh` 0–2 dias, `attention` 3–6, `late` 7–14, `critical` 15+. "O que está atrasado" = `minDaysWaiting: 7`; "crítico" = `minDaysWaiting: 15`. **Nunca prometer data-limite ao usuário nem falar em "vencimento".**
+O `summary` cobre o recorte inteiro, não a página — pode ser narrado mesmo com `items` paginado.
+
+### `get_signature_summary` — `signatures:read`
+Panorama agregado: contagens por status e por faixa de atraso. Use quando o usuário quer um número, não uma lista.
+Args: `status?`, `search?`, `signerQuery?`, `dateFrom?`/`dateTo?`.
+
+### `get_signature_document` — `signatures:read`
+Um documento e a situação de cada signatário.
+Args: `documentId` ✅.
+Retorno: `{ ..., signers: [{ slotId, order, name, email, status, isCurrent, signedAt, waitingSince, daysWaiting, aging, lastRemindedAt }] }`.
+**Regra:** `isCurrent` marca o signatário da vez. A fila é **sequencial** — só ele pode assinar agora; os outros `WAITING` estão atrás dele, não atrasados por culpa própria.
+
+### `create_signature_upload` — `signatures:write` ✍️
+URL temporária (PUT, 15 min) para enviar um PDF que será assinado. Use quando o arquivo está com o usuário e não tem URL.
+Args: `fileName?` (informativo).
+Retorno: `{ uploadUrl, uploadToken, expiresInSeconds, contentType }`.
+**Regra:** enviar com `curl -X PUT -H "Content-Type: application/pdf" --data-binary @arquivo.pdf "<uploadUrl>"` e depois passar o `uploadToken` para `create_signature_request`. **Nunca colar o conteúdo do PDF numa chamada de tool** — base64 de 1 MB custa centenas de milhares de tokens e corrompe o arquivo na primeira reprodução imperfeita, o que quebra o hash da assinatura.
+
+### `create_signature_request` — `signatures:write` ✍️
+Monta a solicitação e **NÃO avisa ninguém**. Primeiro de dois passos.
+Args: `signers` ✅ (array, a ordem é a fila), `documentName?`, `dryRun?`, `idempotencyKey?`, e **exatamente uma** origem de PDF: `responseId?` | `pdfUrl?` | `uploadToken?`.
+- signatário interno: `{ "userId": "<uuid>" }` — precisa ser usuário da mesma empresa.
+- signatário externo: `{ "name": "...", "email": "..." }`.
+Retorno: `{ ok, documentId, status, invitesSent: false, signers }`.
+**Pegadinhas:**
+- `responseId` gera o PDF a partir de uma resposta de formulário — é o caminho para documento que nasce dentro do Ziint. Uma "folha de ponto" aqui é um formulário preenchido; **não existe entidade de folha de ponto** no sistema.
+- `pdfUrl` só aceita `https` e recusa endereço de rede interna.
+- `idempotencyKey` é **best-effort, sem índice único**: duas chamadas simultâneas com a mesma chave **podem** criar dois documentos. Como esta tool não envia nada, a duplicata é um rascunho descartável — cancele o extra. **Não prometa unicidade ao usuário.**
+
+### `send_signature_request` — `signatures:write` ✍️
+**DISPARA** o e-mail com o link para o signatário da vez. Segundo passo, irreversível.
+Args: `documentId` ✅, `dryRun?`.
+Retorno: `{ ok, documentId, sentTo: { name, email, order }, totalSigners, sentAt }`.
+**Regras:**
+- Só o signatário **da vez** é avisado. O próximo é convidado sozinho pelo sistema quando o atual assinar — **não chame em loop para "avisar todo mundo"**.
+- Documento `FULLY_SIGNED` ou `CANCELLED` recusa.
+- Chamar de novo reenvia para a mesma pessoa.
 
 ## Bancos de dados externos
 
