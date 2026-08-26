@@ -52,7 +52,7 @@ A criação é **atômica**: dashboard + painéis + widgets + fontes numa transa
 
 ### Grid de posição
 
-`posicao: { x, y, width, height }` — grid de **24 colunas**; `width`/`height` entre 1 e 24. Widgets sobrepostos geram `warning` (não bloqueia, mas evitar). Layout típico: cards de KPI com `width: 6, height: 3`; gráficos com `width: 12, height: 6`; tabelas full-width com `width: 24`.
+`posicao: { x, y, width, height }` — grid de **10 colunas**, altura útil de **12 linhas**; `x + width` não pode passar de 10. Cada tipo tem largura mínima/máxima própria (`cartao` no máximo 6, `tabela`/`grafico`/`mapa` até 10) — fora dela o front recorta **em silêncio**, e `create_dashboard` trata isso como erro. Widgets sobrepostos também são **erro** (use `permitirSobreposicao: true` no painel se for intencional). Layout típico: cards de KPI com `width: 5, height: 3`; gráficos com `width: 5, height: 4`; tabelas full-width com `width: 10, height: 5`. A lista completa de limites vem de `get_dashboard_capabilities`.
 
 ### `configuracoes` por tipo (shapes principais)
 
