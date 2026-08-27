@@ -46,6 +46,34 @@ Args: `formularioId` ✅, `respostas` ✅ (`{ "<fieldId>": valor }`), `status?` 
 Retornos: `{ dryRun:true, wouldCreate, validation:{unknownFields,missingRequired,invalidOptions} }` · `{ ok:true, responseId, status }` · `{ ok:true, idempotent:true, responseId }` · `{ error, validation }`.
 Fluxo obrigatório: `get_form_fields` → `dryRun:true` → confirmação do usuário → real com `idempotencyKey` (idempotência garantida no banco).
 
+## Desenho de formulários e workflows
+
+### `get_form_capabilities` — `forms:read`
+Catálogo do que um formulário aceita: os 20 tipos de campo com as chaves de `configuracoes` de cada um, operadores condicionais por tipo, grade de 12 colunas, modos de `valorPadrao` e variáveis, os 12 tipos de passo e os 3 modos de roteamento, limites, e a lista do que a plataforma **NÃO** tem.
+Args: `incluirSchemas?` (anexa o JSON Schema completo; payload ~60% maior).
+**Leia antes de montar qualquer spec.** A plataforma não tem máscara, regex, validação de CPF/e-mail, `minLength`, limite de data, campo calculado, seções nem abas — e configurar essas chaves NÃO dá erro: elas são descartadas em silêncio no salvamento, e o usuário acha que funcionou.
+
+### `get_form_design_context` — `forms:read`
+Os ids que existem de verdade na empresa. **Chame antes de create_form/update_form** — sem isto o erro nº1 é inventar `groupId`/`fonteDadosId`, e o campo vira "Campo não configurado corretamente" na tela do usuário.
+Args: `formularioId?` (omitido = formulário novo; informado = inclui o formulário e o workflow atuais).
+Retorno: `{ formularioAtual, workflowAtual, grupos, fontesDados (com output = contrato de colunas), formulariosVinculaveis, variaveis }`.
+Mais completo que `get_form_fields`, que normaliza os campos e perde `condicional`/`layout`/`configuracoes`. Para editar use este; para preencher resposta, aquele.
+
+### `create_form` — `forms:write` ✍️
+Cria formulário + campos + permissões + workflow numa transação única.
+Args: `form` ✅ (`nome`, `titulo`, `descricao`, `campos[]` 1..60, `preenchimentoSettings?`, `respostasSettings?`, `notificationSettings?`), `workflow?` (`steps[]` ≤8 + `transitions?`), `idempotencyKey?`, `dryRun?`.
+Retornos: `{ dryRun:true, wouldCreate, validacao, resumo }` · `{ ok:true, formularioId, campos, workflowSteps, validacao }` · `{ ok:true, idempotent:true, formularioId }` · `{ error, validacao }`.
+`validacao.avisos` = já corrigido pelo servidor, não bloqueia. `validacao.erros` = bloqueia.
+Regras que a validação impõe: todo campo com `id` UUID v4 emitido por você · condicional só cita campo ANTERIOR · select/radio/checkbox exigem `opcoes` com valor `opcaoN` · `selecao_fonte_dados` exige `fonteDadosId`+`templateValor`+`templateLabel` · larguras da mesma linha somam 12 (use 3,4,6,8,9,12) · `array` não aninha `array` · `info`/`button` nunca obrigatórios e a URL do botão vai em `valorPadrao` · cada passo com EXATAMENTE UM modo de roteamento (`groupId` | `habilitarReceiver` | `habilitarSupervisor`+`supervisorOrigem`+`supervisorNivel`).
+Idempotência **best-effort** (sem índice único no banco; evite chamadas concorrentes idênticas).
+Fluxo obrigatório: `get_form_capabilities` → `get_form_design_context` → `dryRun:true` → confirmação do usuário → real com `idempotencyKey`.
+
+### `update_form` — `forms:write` ✍️ (destrutiva)
+Altera um formulário por operações, não reenviando a árvore inteira.
+Args: `formularioId` ✅, `operations` ✅ (1..30: `update_meta` | `add_campo` | `update_campo` | `remove_campo` | `reorder_campos` | `update_settings` | `set_workflow`), `dryRun?`.
+**Protege dado gravado:** `remove_campo` é ERRO sem `confirmarPerdaDeDados:true`; remover, reordenar ou renomear as `opcoes` de um campo existente é ERRO (o editor re-indexa os valores restantes e as respostas gravadas passam a apontar para a opção errada, em silêncio — só é seguro acrescentar ao fim); trocar o `tipo` de um campo existente é ERRO; `id` nunca é alterável.
+O retorno traz `diff` (`campos.adicionados/removidos/alterados` com `destrutivo`, e `riscoDePerdaDeDados`). Rode `dryRun` e mostre o diff à pessoa antes de confirmar — não há desfazer.
+
 ## Analytics
 
 ### `analyze_form` — `analytics:read` (+ `responses:read` para `samples`/`respondents`)
@@ -196,6 +224,7 @@ Regras: mutações (`INSERT/UPDATE/DELETE/DROP/...`) e stacked queries (`;` + co
 ## Resources e prompt MCP (clientes que suportam)
 
 - Resource `ziint://docs/dashboard-spec` (sempre visível) — spec de widgets/grid/fontes.
+- Resource `ziint://docs/form-spec` (sempre visível) — contrato de formulários: árvore de decisão de tipo de campo, condicional em grupos E/OU, grade de 12, permissões e suas assimetrias, workflow e roteamento, o que NÃO existe, e as armadilhas que perdem dado.
 - Resource `ziint://forms/{formularioId}/schema` (`forms:read`) — schema de um formulário por URI.
 - Prompt `build-dashboard` (`dashboards:write`) — fluxo guiado de criação de dashboard. Args: `objetivo` ✅, `formularioId?`.
 Nenhuma tool depende deles; muitos clientes MCP os ignoram.
