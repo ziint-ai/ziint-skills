@@ -212,8 +212,8 @@ Retorno: `{ ok, documentId, sentTo: { name, email, order }, totalSigners, sentAt
 ### `list_database_connections` — `database:read`
 Conexões de banco **externas** cadastradas pela empresa (não é o banco do Ziint).
 Args: `search?`, `limit?` (teto 100), `offset?`.
-Retorno: `{ id, nome, tipo, database, isActive, promptRespostaAgente, promptGeracaoSql, ... }[]` — **nunca** retorna host/porta/usuário/senha.
-Uso: **ler `promptRespostaAgente` (contexto do banco) e `promptGeracaoSql` (schema/tabelas/regras) antes de montar qualquer SQL.**
+Retorno: `{ id, nome, tipo, database, isActive, documentacao: { chars, secoes, atualizadaEm } }[]` — o ÍNDICE da documentação, não o texto. **Nunca** retorna host/porta/usuário/senha.
+Uso: achar a conexão certa, depois **`get_database_connection` para ler a documentação antes de montar qualquer SQL.** `chars: 0` = conexão não documentada; o agente SQL a recusa.
 
 ### `query_database` — `database:read`
 Executa SELECT read-only na conexão externa escolhida.

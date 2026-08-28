@@ -66,14 +66,14 @@ Fluxo completo em `dashboards.md`. Resumo: descobrir campos → validar agregaç
 
 ```
 1. list_database_connections { search: "vendas" } → connectionId
-2. LER promptRespostaAgente (contexto) e promptGeracaoSql (schema/tabelas/regras)
+2. get_database_connection → LER a documentação do banco (contexto, tabelas, regras)
    da conexão — montar o SQL só depois disso
 3. query_database { connectionId, sql: "SELECT ... FROM ... WHERE ...", maxRows: 500 }
 4. Se truncated: refinar com WHERE/agregação, ou paginar a análise
 5. (opcional) generate_chart / generate_csv com o resultado
 ```
 
-Só `SELECT`/`WITH ... SELECT` — o servidor bloqueia mutações e stacked queries. Respeitar as regras descritas em `promptGeracaoSql` (dialeto, nomes de tabela, joins recomendados).
+Só `SELECT`/`WITH ... SELECT` — o servidor bloqueia mutações e stacked queries. Respeitar as regras descritas na documentação do banco (dialeto, nomes de tabela, joins recomendados).
 
 ## 7. "Meu dia" / pendências pessoais
 

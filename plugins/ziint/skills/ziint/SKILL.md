@@ -82,7 +82,7 @@ Argumentos, retornos e pegadinhas de cada tool: `references/tools.md`. Receitas 
 
 **Assinatura (dois passos, o segundo irreversível):** obter o PDF — `responseId` de uma resposta do Ziint, `pdfUrl` https, ou `create_signature_upload` + PUT quando o arquivo está com o usuário → `create_signature_request` com `dryRun: true` → **mostrar documento e destinatários e confirmar** → `create_signature_request` real (nada é enviado ainda) → **confirmar de novo** → `send_signature_request`. Para acompanhar: `query_signature_pendencies` (quem falta, há quantos dias) e `get_signature_document` (um documento em detalhe).
 
-**Banco externo:** `list_database_connections` → **ler** `promptRespostaAgente` (contexto do banco) e `promptGeracaoSql` (schema/regras) da conexão escolhida → montar `SELECT` (apenas leitura; `WITH...SELECT` permitido) → `query_database`. Se `truncated: true`, refinar com `WHERE`/`LIMIT`.
+**Banco externo:** `list_database_connections` (índice de seções) → `get_database_connection` para **ler a documentação** da conexão escolhida (tabelas, relacionamentos, códigos e regras) → montar `SELECT` (apenas leitura; `WITH...SELECT` permitido) → `query_database`. Se `truncated: true`, refinar com `WHERE`/`LIMIT`.
 
 ## Erros comuns e recuperação
 
