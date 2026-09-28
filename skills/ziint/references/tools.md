@@ -49,9 +49,9 @@ Fluxo obrigatório: `get_form_fields` → `dryRun:true` → confirmação do usu
 ## Desenho de formulários e workflows
 
 ### `get_form_capabilities` — `forms:read`
-Catálogo do que um formulário aceita: os 20 tipos de campo com as chaves de `configuracoes` de cada um, operadores condicionais por tipo, grade de 12 colunas, modos de `valorPadrao` e variáveis, os 12 tipos de passo e os 3 modos de roteamento, limites, e a lista do que a plataforma **NÃO** tem.
+Catálogo do que um formulário aceita: os 21 tipos de campo (inclusive `secao`, que agrupa perguntas) com as chaves de `configuracoes` de cada um, operadores condicionais por tipo, grade de 12 colunas, modos de `valorPadrao` e variáveis, os 12 tipos de passo e os 3 modos de roteamento, limites, e a lista do que a plataforma **NÃO** tem.
 Args: `incluirSchemas?` (anexa o JSON Schema completo; payload ~60% maior).
-**Leia antes de montar qualquer spec.** A plataforma não tem máscara, regex, validação de CPF/e-mail, `minLength`, limite de data, campo calculado, seções nem abas — e configurar essas chaves NÃO dá erro: elas são descartadas em silêncio no salvamento, e o usuário acha que funcionou.
+**Leia antes de montar qualquer spec.** A plataforma não tem máscara, regex, validação de CPF/e-mail, `minLength`, limite de data, campo calculado nem abas — e configurar essas chaves NÃO dá erro: elas são descartadas em silêncio no salvamento, e o usuário acha que funcionou.
 
 ### `get_form_design_context` — `forms:read`
 Os ids que existem de verdade na empresa. **Chame antes de create_form/update_form** — sem isto o erro nº1 é inventar `groupId`/`fonteDadosId`, e o campo vira "Campo não configurado corretamente" na tela do usuário.
