@@ -10,7 +10,8 @@
 ### `list_companies` — sem escopo
 Empresas a que a conexão dá acesso. Com mais de uma, **toda outra tool** recebe `empresa` (nome, slug ou id daqui) e roda naquela empresa, com o perfil e as permissões da pessoa lá; sem `empresa`, a tool devolve `codigo: "empresa_obrigatoria"` para você perguntar ao usuário.
 Args: nenhum.
-Retorno: `{ empresas: [{ id, nome, slug, perfil, liberados: [escopos], semPermissao: [escopos] }], exigeEmpresa, orientacao? }`.
+Retorno: `{ empresas: [{ id, nome, slug, perfil, liberados: [escopos], semPermissao: [escopos] }], exigeEmpresa, empresaDaConversa?, orientacao? }`.
+A empresa informada fica lembrada na conversa (`empresaDaConversa`); as chamadas seguintes sem `empresa` usam ela, e cada resultado diz `Empresa usada: X`.
 Com uma empresa só, `empresa` é opcional, mas, se vier, tem de ser ela.
 
 ## Formulários e respostas
