@@ -1,9 +1,17 @@
 # Catálogo de tools do MCP Ziint
 
-29 tools, todas confinadas à empresa da API key (multi-tenant enforced no servidor). Convenções:
+29 tools, todas confinadas à empresa da credencial (multi-tenant enforced no servidor; com várias empresas no OAuth, à escolhida em `empresa`). Convenções:
 - Erros vêm como `{ "error": "..." }` dentro do conteúdo da tool — ler e se recuperar.
 - `✅` = obrigatório. Tools de escrita estão marcadas com ✍️ e aceitam `dryRun`.
 - IDs (`formularioId`, `dashboardId`, ...) sempre vêm de uma tool de listagem — nunca inventar.
+
+## Empresas da conexão
+
+### `list_companies` — sem escopo
+Empresas a que a conexão dá acesso. Com mais de uma, **toda outra tool** recebe `empresa` (nome, slug ou id daqui) e roda naquela empresa, com o perfil e as permissões da pessoa lá; sem `empresa`, a tool devolve `codigo: "empresa_obrigatoria"` para você perguntar ao usuário.
+Args: nenhum.
+Retorno: `{ empresas: [{ id, nome, slug, perfil, liberados: [escopos], semPermissao: [escopos] }], exigeEmpresa, orientacao? }`.
+Com uma empresa só, `empresa` é opcional, mas, se vier, tem de ser ela.
 
 ## Formulários e respostas
 

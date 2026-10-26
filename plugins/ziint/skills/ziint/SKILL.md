@@ -42,6 +42,7 @@ Antes de qualquer tarefa, confirmar que o servidor MCP `ziint` está conectado (
 5. **Erros de tool são recuperáveis.** As tools devolvem `{ "error": "..." }` no conteúdo (não estouram a conexão). Ler o erro e se autocorrigir — ex.: `validFields` lista os campos válidos quando um `fieldId` é rejeitado.
 6. **Assinatura são dois passos, e o segundo é irreversível.** `create_signature_request` cria o documento **calado** — nenhum e-mail sai. Só `send_signature_request` avisa a pessoa, e e-mail enviado não volta. Sempre: `dryRun` → mostrar ao usuário o documento e **os destinatários** → criar → **confirmar de novo** → enviar. Nunca encadeie criar-e-enviar sem confirmação no meio; a separação existe justamente para uma leitura errada sua virar rascunho descartável, e não mensagem na caixa de alguém.
 7. **A API key é segredo.** Nunca gravar a chave em arquivos versionados do usuário; usar variável de ambiente (`ZIINT_API_KEY`) nas configurações de MCP.
+8. **Várias empresas: pergunte qual.** Quem entrou por OAuth e tem acesso a mais de uma empresa pode autorizar várias na mesma conexão. Nesse caso toda tool (menos `list_companies`) recebe `empresa` (nome ou id). Se o usuário não disse a empresa, **pergunte antes da primeira tool**; não escolha por ele. Depois repita a mesma `empresa` nas chamadas seguintes até ele pedir outra, e diga de qual empresa é cada número quando comparar duas. `list_companies` mostra as empresas, o perfil da pessoa em cada uma e o que ela pode usar ali. Permissão é por empresa: "sem permissão" em uma não diz nada sobre a outra.
 
 ## Seleção de tool (pergunta → tool)
 
@@ -92,6 +93,9 @@ Argumentos, retornos e pegadinhas de cada tool: `references/tools.md`. Receitas 
 | HTTP 403 `API_KEY_INACTIVE`/`API_KEY_COMPANY_INACTIVE` | Chave ou empresa desativada | Encaminhar ao admin do Ziint |
 | `{ "error": "Formulário não encontrado" }` | ID de outra empresa ou inexistente | Rodar `list_forms` de novo e usar um ID retornado — nunca insistir com o mesmo ID |
 | `{ "error": "API key sem o escopo necessário: X" }` | Chave sem o escopo | Informar o usuário; pedir ajuste da chave ao admin |
+| `{ "codigo": "empresa_obrigatoria", "empresas": [...] }` | A conexão alcança mais de uma empresa | Perguntar ao usuário em qual delas e repetir a chamada com `empresa` |
+| `{ "codigo": "empresa_fora_da_conexao" }` | Empresa não autorizada nesta conexão (ou o vínculo acabou) | Rodar `list_companies` e confirmar com o usuário; para incluir uma empresa, ele desconecta e conecta de novo |
+| `{ "codigo": "sem_permissao", "error": "… na empresa X" }` | A pessoa não tem a permissão naquela empresa | Informar; não tentar em outra empresa sem o usuário pedir |
 | `{ "error": ..., "validFields": [...] }` | `fieldId`/`groupBy` inválido | Autocorrigir usando um item de `validFields` |
 | `truncated: true` no retorno | Corte por limite de linhas/payload | Paginar com `offset` ou refinar filtros |
 | Tool some do catálogo após regenerar a chave | Escopos são gravados na criação da chave | Chaves antigas precisam ser editadas/regeneradas para ganhar escopos novos |
